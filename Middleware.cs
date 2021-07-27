@@ -1,4 +1,4 @@
-﻿using JamaaTech.Smpp.Net.Client;
+using JamaaTech.Smpp.Net.Client;
 using JamaaTech.Smpp.Net.Lib;
 using JamaaTech.Smpp.Net.Lib.Protocol;
 using System;
@@ -11,12 +11,11 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-//using System.ServiceProcess;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace tglSMPPMiddleware
+namespace SMPPMiddleware
 {
     class Middleware
     {
@@ -62,14 +61,14 @@ namespace tglSMPPMiddleware
                 //Console.WriteLine("SMPP Client now connected");
                 //Logging("SMPP Client now connected");
                 EventLog eve = new EventLog();
-                eve.Source = "tglSMPPMiddleware - StartService";
+                eve.Source = "SMPP Middleware - StartService";
                 eve.WriteEntry("SMPP Client now connected", EventLogEntryType.Information);
                 server = new TcpListener(IPAddress.Parse(ConfigurationManager.AppSettings["ServiceIP"]), Convert.ToInt32(ConfigurationManager.AppSettings["ServicePort"]));
                 server.Start();
                 //Console.WriteLine("TCP Listener Started.");
                 //Logging("TCP Listener Started.");
                 EventLog eventLog = new EventLog();
-                eventLog.Source = "tglSMPPMiddleware - StartService";
+                eventLog.Source = "SMPP Middleware - StartService";
                 eventLog.WriteEntry("TCP Listener Started.", EventLogEntryType.Information);
                 var whileThread = new Thread(() =>
                 {
@@ -84,11 +83,8 @@ namespace tglSMPPMiddleware
                                 byte[] data = new byte[2048];
                                 int size = client.Receive(data);
                                 var str = System.Text.Encoding.Default.GetString(data);
-                                //Logging(str);
                                 string[] elements = str.ToString().Split('|');
                                 alertid = elements[3];
-                            //Console.WriteLine("Receved data:{0} ", str.ToString());
-                            //Logging(string.Format("Received data:{0} ", str.ToString()));
                                 try
                                 {
                                     var textMessage = new TextMessage() { DestinationAddress = elements[0], SourceAddress = elements[2], Text = elements[1] };
@@ -97,15 +93,7 @@ namespace tglSMPPMiddleware
                                     textMessage.SubmitUserMessageReference = false;
                                     smppclient.SendMessage(textMessage);
 
-                                    //using (tgatedbContext db = new tgatedbContext())
-                                    //{
-                                    //    message_mapping mm = new message_mapping();
-                                    //    mm.msgid = textMessage.ReceiptedMessageId;
-                                    //    mm.guid = textMessage.UserMessageReference;
-                                    //    mm.inserttime = DateTime.Now;
-                                    //    mc.message_mapping.Add(mm);
-                                    //    db.SaveChanges();
-                                    //}
+                                    
                                     string full =textMessage.ReceiptedMessageId.ToString() +"|"+ textMessage.UserMessageReference.ToString();
                                 byte[] q = Encoding.ASCII.GetBytes(full);
                                     client.Send(q);
@@ -114,19 +102,18 @@ namespace tglSMPPMiddleware
                                 {
                                     //Logging(ex.ToString());
                                     EventLog ex = new EventLog();
-                                    eve.Source = "tglSMPPMiddleware - StartService";
+                                    eve.Source = "SMPP Middleware - StartService";
                                     eve.WriteEntry(e.ToString(), EventLogEntryType.Error);
-                                    //Console.WriteLine(ex.ToString());
+                                  
                                 }
-                            //while (string.IsNullOrEmpty(msgid)) { Thread.Sleep(1); }
-                            //Console.WriteLine("Waiting for incoming data...");
+                           
                             client.Close();
                             });
                             childSocketThread.Start();
                         }catch(Exception ex)
                         {
                             EventLog el = new EventLog();
-                            el.Source = "tglSMPPMiddleware - StartService";
+                            el.Source = "SMPP Middleware - StartService";
                             el.WriteEntry(ex.ToString(), EventLogEntryType.Error);
                         }
                     }
@@ -137,63 +124,41 @@ namespace tglSMPPMiddleware
             {
                 try
                 {
-                    service_activity_log sal = new service_activity_log();
-                    sal.activity_time = DateTime.Now;
-                    sal.alertid = "tgl SMPP Middleware - SMPP Connection Error";
-                    sal.activity_log = "Error while Binding to SMPP Server: " + e.ToString();
-                    mc.service_activity_log.Add(sal);
-                    mc.SaveChanges();
-                }
-                catch (SqlException ev)
-                {
-                    // Logging(ev.ToString());
                     EventLog eve = new EventLog();
-                    eve.Source = "tglSMPPMiddleware - StartService";
-                    eve.WriteEntry(ev.ToString(), EventLogEntryType.Error);
+                    eve.Source = "SMPP Middleware - SMPP Bind Exception";
+                    eve.WriteEntry(e.ToString(), EventLogEntryType.Error);
                 }
+               
                 catch (Exception ev)
                 {
                     EventLog eve = new EventLog();
-                    eve.Source = "tglSMPPMiddleware - StartService";
+                    eve.Source = "SMPP Middleware - StartService";
                     eve.WriteEntry(ev.ToString(), EventLogEntryType.Error);
-                    // Logging(ev.ToString());
-                    // Logging(e.ToString());
                 }
             }
             catch (SocketException ex)
             {
                 try
                 {
-                    service_activity_log sal = new service_activity_log();
-                    sal.activity_time = DateTime.Now;
-                    sal.alertid = "tgl SMPP Middleware - Connection Error";
-                    sal.activity_log = "Error while seting up connection on SMPP Middleware: " + ex.ToString();
-                    mc.service_activity_log.Add(sal);
-                    mc.SaveChanges();
-                }
-                catch (SqlException e)
-                {
-                    //Logging(e.ToString());
                     EventLog eve = new EventLog();
-                    eve.Source = "tglSMPPMiddleware - StartService";
-                    eve.WriteEntry(e.ToString(), EventLogEntryType.Error);
+                    eve.Source = "SMPP Middleware - Socket Exception";
+                    eve.WriteEntry(ex.ToString(), EventLogEntryType.Error);
                 }
                 catch (Exception e)
                 {
                     EventLog eve = new EventLog();
-                    eve.Source = "tglSMPPMiddleware - StartService";
+                    eve.Source = "SMPP Middleware - General Exception";
                     eve.WriteEntry(e.ToString(), EventLogEntryType.Error);
                 }
-                //Logging(ex.InnerException.ToString());
                 EventLog eventLog = new EventLog();
-                eventLog.Source = "tglSMPPMiddleware - StartService";
+                eventLog.Source = "SMPP Middleware - Service Error";
                 eventLog.WriteEntry(ex.ToString(), EventLogEntryType.Error);
             }
             catch (Exception ex)
             {
                 //Logging(ex.ToString());
                 EventLog eventLog = new EventLog();
-                eventLog.Source = "tglSMPPMiddleware - StartService";
+                eventLog.Source = "SMPP Middleware - General Exception";
                 eventLog.WriteEntry(ex.ToString(), EventLogEntryType.Error);
             }
         }
@@ -208,7 +173,7 @@ namespace tglSMPPMiddleware
             {
               //  Logging(ex.ToString());
                 EventLog eventLog = new EventLog();
-                eventLog.Source = "tglSMPPMiddleware - StopService";
+                eventLog.Source = "SMPP Middleware - StopService";
                 eventLog.WriteEntry(ex.ToString(), EventLogEntryType.Error);
             }
         }
@@ -223,10 +188,8 @@ namespace tglSMPPMiddleware
             try
             {
                 TextMessage textMsg = e.ShortMessage as JamaaTech.Smpp.Net.Client.TextMessage;
-                //Console.WriteLine("Message State Event: " + textMsg.MessageState.ToString());
-                //Console.WriteLine("Message Delivered Event: " + textMsg.Text);
+               
                 Middleware.response = textMsg.ToString() + "|"+senderid;
-
                 string[] dr = response.Split(' ');
                 string[] recid = dr[0].Split(':');
                 string[] submitt = dr[4].Split(':');
@@ -234,16 +197,15 @@ namespace tglSMPPMiddleware
                 string[] status1 = dr[7].Split(':');
                 string[] scode = dr[2].Split(':');
                 string[] err = dr[8].Split(':');
-                //Console.WriteLine("Delivery Response Received: " + response);
-                //submittime = DateTime.ParseExact(submitt[1], "yyMMddHHmm", CultureInfo.InvariantCulture);
-                //donetime = DateTime.ParseExact(donet[1], "yyMMddHHmm", CultureInfo.InvariantCulture);
+               
                 status = status1[1];
                 statusCode = scode[1];
                 errorCode = err[1];
-                //Console.WriteLine("Submit date:{0},  Done Date: {1}, Delivery State:{2}, Status Code:{3}, Error Code:{4}", submittime, donetime, status, statusCode, errorCode);
+                
                 try
                 {
-                    using (tgatedbContext mc = new tgatedbContext())
+                    //Store Delivery response in Database
+                    using (dbContext mc = new dbContext())
                     {
                         delivery_report delivery = new delivery_report();
                         delivery.msgid = recid[1];
@@ -257,7 +219,7 @@ namespace tglSMPPMiddleware
                         mc.SaveChanges();
                     }
                     EventLog eventLog = new EventLog();
-                    eventLog.Source = "tglSMPPMiddleware - MessageDelivered Event";
+                    eventLog.Source = "SMPPMiddleware - MessageDelivered Event";
                     eventLog.WriteEntry(Middleware.response, EventLogEntryType.Information);
                 }catch(Exception ex)
                 {
@@ -265,19 +227,16 @@ namespace tglSMPPMiddleware
                     string str = recid[1] + "|" + submittime.ToString("yyyyMMddHHmmssfff") + "|" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + "|" + status + "|" + statusCode + "|" + errorCode;
                     File.WriteAllText(path, str);
                     EventLog eventLog = new EventLog();
-                    eventLog.Source = "tglSMPPMiddleware - MessageDelivered Event";
+                    eventLog.Source = "SMPP Middleware - MessageDelivered Event";
                     eventLog.WriteEntry(ex.ToString(), EventLogEntryType.Error);
                 }
-                //Logging(string.Format("Submit date:{0},  Done Date: {1}, Delivery State:{2}, Status Code:{3}, Error Code:{4}", submittime, donetime, status, statusCode, errorCode));
-                //string path = ConfigurationManager.AppSettings["deliveryReport"] + recid[1] + ".txt";
-                //string str = recid[1] + "|" + submittime.ToString("yyyyMMddHHmmssfff") + "|" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + "|" + status + "|" + statusCode + "|" + errorCode;
-                //File.WriteAllText(path, str);
+                
             }
             catch(Exception ex)
             {
               //  Logging(ex.ToString());
                 EventLog eventLog = new EventLog();
-                eventLog.Source = "tglSMPPMiddleware - MessageDelivered Event";
+                eventLog.Source = "SMPP Middleware - MessageDelivered Event";
                 eventLog.WriteEntry(ex.ToString(), EventLogEntryType.Error);
             }
         }
@@ -292,13 +251,11 @@ namespace tglSMPPMiddleware
                 //richTextBox1.Text = richTextBox1.Text + textMsg + " Step 1";
                 string msgInfo = string.Format("Sender: {0}, Receiver: {1}, Message content: {2}", textMsg.SourceAddress, textMsg.DestinationAddress, textMsg.Text);
 
-                //Display message       
-                //Logging("Message Received Event: " + msgInfo);
-                //Console.WriteLine("Message Received Event: " + msgInfo);
+
             }catch(Exception ex)
             {
                 EventLog eventLog = new EventLog();
-                eventLog.Source = "tglSMPPMiddleware - MessageReceived Event";
+                eventLog.Source = "SMPPMiddleware - MessageReceived Event";
                 eventLog.WriteEntry(ex.ToString(), EventLogEntryType.Error);
             }
         }
@@ -317,45 +274,22 @@ namespace tglSMPPMiddleware
                 sender1 = msg.ReceiptedMessageId;
                 string mstate = msg.MessageState.ToString();
                 string msgref = msg.UserMessageReference.ToString();
-                //Console.WriteLine("Message Sent Event: " + msg.Text + " Segment ID: " + SegID + " Sequence Number: " + Seg + " Message ID: " + msgid + " Message State: " + mstate); //Display message
                 
-                //using(tgatedbContext mc = new tgatedbContext())
-                //{
-                //    message_mapping mm = new message_mapping();
-                //    mm.msgid = msgid;
-                //    mm.guid = msgref;
-                //    mm.inserttime = DateTime.Now;
-                //    mc.message_mapping.Add(mm);
-                //    mc.SaveChanges();
-                //}
-                //string path = ConfigurationManager.AppSettings["receiveConfirmation"] + msgid + ".txt";
                 string now = DateTime.Now.ToString("yyyyMMddHHmmssfff");
                 string str = msgid + "|" + senderid + "|" + msgref;
                 EventLog eventLog = new EventLog();
-                eventLog.Source = "tglSMPPMiddleware - MessageSent Event";
+                eventLog.Source = "SMPP Middleware - MessageSent Event";
                 eventLog.WriteEntry(str, EventLogEntryType.Information);
                 //File.WriteAllText(path, str);
             }catch(Exception ex)
             {
                 EventLog eventLog = new EventLog();
-                eventLog.Source = "tglSMPPMiddleware - MessageSent Event";
+                eventLog.Source = "SMPP Middleware - MessageSent Event";
                 eventLog.WriteEntry(ex.ToString(), EventLogEntryType.Error);
             }
         }
 
-        //public static void Logging(string str)
-        //{
-        //    try
-        //    {
-        //        string path = ConfigurationManager.AppSettings["logFilePath"] + DateTime.Now.ToString("yyyyMMdd") + ".log";
-        //        File.WriteAllText(path, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") +": "+ str + "\n");
-        //    }catch(Exception ex)
-        //    {
-        //        EventLog eventLog = new EventLog();
-        //        eventLog.Source = "tglSMPPMiddleware - Logging";
-        //        eventLog.WriteEntry(ex.ToString(), EventLogEntryType.Error);
-        //    }
-        //}
+       
 
     }
 }
